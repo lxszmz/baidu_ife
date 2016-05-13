@@ -30,14 +30,17 @@
             return document.getElementById(id);
         }
 
-        aqiData.sort(function(a,b){
+        var data=aqiData.filter(function(item){
+            return (item[1]>60);
+        });//对数据进行筛选
+
+        data.sort(function(a,b){
             return b[1]-a[1];
-        });
-        aqiData.forEach(function(item,index){
-            if(item[1]>60){
+        });//对数据进行排序
+
+        data.forEach(function(item,index){
                $("aqi-list").innerHTML+="<li>"+item[0]+","+item[1]+"</li>";
-            }
-        })
+        });//显示数据
 
     })();
 
