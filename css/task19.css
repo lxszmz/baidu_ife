@@ -1,0 +1,10 @@
+#showArea{
+    list-style-type:none;
+}
+.num{
+
+    float:left;
+    width: 20px;
+    background-color: red;
+    margin:5px
+}
