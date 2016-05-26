@@ -78,7 +78,6 @@ Sender.prototype= {
     send:function(command){
 //        var success = Math.random() > 0.3 ? true : false;
         if(1){
-            console.log("this.mediator.receive(command);");
             this.mediator.receive(command);
         }else{
             console.log(this.name+"发送命令失败");
@@ -102,10 +101,8 @@ Mediator.prototype= {
         var success = Math.random() > 0.3 ? true : false;
         if(1){
             if(command.cmd==="launch"){
-                console.log("中介者接收函数：发送明码");
                  this.create(command);
             }else{
-                console.log("中介者接收函数：其它命令");
                 this.spaceships[command.id].receive(command);
             }
         }else{
@@ -117,7 +114,8 @@ Mediator.prototype= {
     create:function(command){
         var spaceship = new Spaceship(command.id);
         this.spaceships.push(spaceship);
-        console.log("创建飞船成功");
+        console.log("创建成功");
+        AnimUtil.create(command.id, spaceship.power);
     }
 }
 
@@ -140,26 +138,24 @@ Spaceship.prototype= {
     }
 };
 
+//状态
 Spaceship.prototype.StateManager=function(){
     var self = this;
     var states={
         fly: function(state) {
             self.currState = "fly";
-//            self.dynamicManager().fly();
+            self.dynamicManager().fly();
 //            self.powerManager().discharge();
-            console.log( self.currState);
         },
         stop: function(state) {
             self.currState = "stop";
-//            self.dynamicManager().stop();
+            self.dynamicManager().stop();
 //            self.powerManager().charge();
-            console.log( self.currState);
         },
         destroy: function(state) {
             self.currState = "destroy";
-//            AnimUtil.destroy(self.id);
+            AnimUtil.destroy(self.id);
 //            self.mediator.remove(self);
-            console.log( self.currState);
         }
     };
 
@@ -176,10 +172,142 @@ Spaceship.prototype.StateManager=function(){
 
 };
 
+//能源系统
+Spaceship.prototype.powerManager = function() {
+    var self = this;
+    /**
+     * [charge: 飞船充电]
+     * @return {[boolean]} [充电返回true]
+     */
+    var charge = function() {
+        var chargeRate = DEFAULT_CHARGE_RATE;
+        var timer = setInterval(function() {
+            //若飞船在飞行或者被销毁则不再充电
+            if (self.currState == "fly" || self.currState == "destroy") {
+                clearInterval(timer);
+                return false;
+            }
+            if (self.power >= 100) { //power is full, so stop charging.
+                clearInterval(timer);
+                self.power = 100;
+                return false;
+            }
+            self.power += chargeRate;
+            AnimUtil.updatePower(self.id, self.power);
+        }, 20);
+//        ConsoleUtil.show("Spaceship No." + self.id + " is charging.");
+    };
+
+    /**
+     * [discharge: discharge power when flying]
+     * @return {[type]} [description]
+     */
+    var discharge = function() {
+        var dischargeRate = DEFAULT_DISCHARGE_RATE;
+        var timer = setInterval(function() {
+            //if the spaceship is stop or has been destroyed stop, then stop discharging.
+            if (self.currState == "stop" || self.currState == "destroy") {
+                clearInterval(timer);
+                return false;
+            }
+            if (self.power <= 0) {
+                clearInterval(timer);
+                self.power = 0;
+                self.stateManager().changeState("stop");
+                return false;
+            }
+            self.power -= dischargeRate;
+            AnimUtil.updatePower(self.id, self.power);
+        }, 20);
+//        ConsoleUtil.show("Spaceship No." + self.id + " is discharging.");
+    };
+
+    return {
+        charge: charge,
+        discharge: discharge
+    };
+};
+
+Spaceship.prototype.dynamicManager=function(){
+    var self = this;
+
+    var fly=function(){
+        self.timer = setInterval(function() {
+            self.deg += 2;
+            if (self.deg >= 360) self.deg = 0; //飞完一圈时，重置角度
+            AnimUtil.fly(self.id, self.deg);
+        }, 20);
+    };
+    var stop=function(){
+        self.timer = setInterval(function() {
+            self.deg += SPACESHIP_SPEED;
+            if (self.deg >= 360) self.deg = 0; //飞完一圈时，重置角度
+            AnimUtil.fly(self.id, self.deg);
+        }, 20);
+    };
+    return {
+        fly: fly,
+        stop: stop
+    };
+};
+
+
 function init(){
     var mediator = new Mediator();
     var sender = new  Sender(mediator);
     buttonHandler(sender);
 }
+
+//动画工具
+var AnimUtil = (function() {
+    var mediator = null;
+    return {
+        create: function(id, power) {
+            var target = document.getElementById("spaceship0" + id);
+            console.log(target);
+            var target2 = document.getElementById("info" + id);
+            var target3 = document.getElementById("powerbar" + id);
+            target.setAttribute("style", "display:block" );
+            target2.setAttribute("style","display: block");
+            target3.setAttribute("style","width: "+power + "px");
+//            ConsoleUtil.show("create animation");
+        },
+        fly: function(id, deg) {
+            var mvDeg = "rotate(" + deg + "deg)";
+            var target = "spaceship0" + id;
+            // $(target).addClass("active");
+            document.getElementById(target).css({
+                "transform": mvDeg,
+                "-webkit-transform": mvDeg
+            });
+        },
+        stop: function(id) {
+            var target = "spaceship0" + id;
+            document.getElementById(target).removeClass("active");
+        },
+        updatePower: function(id, power) {
+            var target = "powerbar" + id;
+            var powerColor = null;
+            if (power > 60) {
+                powerColor = POWERBAR_COLOR_GOOD;
+            } else if (power <= 60 && power >= 20) {
+                powerColor = POWERBAR_COLOR_MEDIUM;
+            } else {
+                powerColor = POWERBAR_COLOR_BAD;
+            }
+            document.getElementById(target).css({
+                "width": power + "px",
+                "background-color": powerColor
+            });
+        },
+        destroy: function(id) {
+            var target = "spaceship0" + id;
+            var target2 = "info" + id;
+            // $(target).removeClass("active");
+            document.getElementById(target).css("display", "none");
+            document.getElementById(target2).css("display", "none");
+        }
+    };
+})();
 
 init();
